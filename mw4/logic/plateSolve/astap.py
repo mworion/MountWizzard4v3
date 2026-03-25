@@ -154,6 +154,7 @@ class ASTAP(object):
             os.remove(wcsPath)
 
         binPathASTAP = self.appPath + '/astap'
+        binPathASTAP = binPathASTAP if os.path.isfile(binPathASTAP) else self.appPath + '/astap_cli'
         options = ['-r', f'{self.searchRadius:1.1f}',
                    '-t', '0.005',
                    '-z', '0',
