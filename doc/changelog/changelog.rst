@@ -31,6 +31,7 @@ Version 4.x
 - change: faster and more reliable uploading mechanism for databases
 - change: celestrak interface url's and retrieval strategy
 - change: moving PyQt5 to major PySide6
+- change: moving from local alpaca server to ALPYCA library provided by ASCOM for ALPACA support
 - change: moving libraries to latest versions
 - change: remove old windows automation as it is not needed anymore
 - change: remove embedded documentation and replace with online link
