@@ -15,7 +15,7 @@
 ###########################################################
 from mw4.base.alpacaClass import AlpacaClass
 
-_SHUTTER_STATES = ["Open", "Closed", "Opening", "Closing", "Error"]
+_shutterStates = ["Open", "Closed", "Opening", "Closing", "Error"]
 
 
 class DomeAlpaca(AlpacaClass):
@@ -71,11 +71,11 @@ class DomeAlpaca(AlpacaClass):
                 else self._device.ShutterStatus
             )
             if shutter == 0:
-                self.storePropertyToData(_SHUTTER_STATES[0], "Status.Shutter")
+                self.storePropertyToData(_shutterStates[0], "Status.Shutter")
                 self.storePropertyToData(True, "DOME_SHUTTER.SHUTTER_OPEN")
                 self.storePropertyToData(False, "DOME_SHUTTER.SHUTTER_CLOSED")
             elif shutter == 1:
-                self.storePropertyToData(_SHUTTER_STATES[1], "Status.Shutter")
+                self.storePropertyToData(_shutterStates[1], "Status.Shutter")
                 self.storePropertyToData(False, "DOME_SHUTTER.SHUTTER_OPEN")
                 self.storePropertyToData(True, "DOME_SHUTTER.SHUTTER_CLOSED")
             else:

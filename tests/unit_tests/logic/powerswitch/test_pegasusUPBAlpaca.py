@@ -35,9 +35,9 @@ def function():
     yield func
 
 
-def _make_upb_device(max_switch=15):
+def _make_upb_device(maxSwitch=15):
     dev = mock.MagicMock()
-    dev.MaxSwitch = max_switch
+    dev.MaxSwitch = maxSwitch
     dev.GetSwitch.return_value = True
     dev.GetSwitchValue.return_value = 5.0
     return dev
@@ -50,7 +50,7 @@ def test_workerPollData_1_disconnected(function):
 
 def test_workerPollData_2_upb_model(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=15)
+    function._device = _make_upb_device(maxSwitch=15)
     with mock.patch.object(function, "storePropertyToData"):
         function.workerPollData()
     assert function.data["FIRMWARE_INFO.VERSION"] == "1.4"
@@ -58,7 +58,7 @@ def test_workerPollData_2_upb_model(function):
 
 def test_workerPollData_3_upbv2_model(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=21)
+    function._device = _make_upb_device(maxSwitch=21)
     with mock.patch.object(function, "storePropertyToData"):
         function.workerPollData()
     assert function.data["FIRMWARE_INFO.VERSION"] == "2.1"
@@ -105,7 +105,7 @@ def test_togglePortUSB_1_disconnected(function):
 
 def test_togglePortUSB_2_upbv2(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=21)
+    function._device = _make_upb_device(maxSwitch=21)
     function.data["USB_PORT_CONTROL.PORT_1"] = False
     function.togglePortUSB("1")
     function._device.SetSwitchValue.assert_called_with(7, float(False))
@@ -113,7 +113,7 @@ def test_togglePortUSB_2_upbv2(function):
 
 def test_togglePortUSB_3_upb_no_action(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=15)  # UPB → no USB port toggle
+    function._device = _make_upb_device(maxSwitch=15)  # UPB → no USB port toggle
     function.togglePortUSB("1")
     function._device.SetSwitchValue.assert_not_called()
 
@@ -125,7 +125,7 @@ def test_toggleAutoDew_1_disconnected(function):
 
 def test_toggleAutoDew_2_upbv2(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=21)
+    function._device = _make_upb_device(maxSwitch=21)
     function.data["AUTO_DEW.DEW_A"] = False
     function.toggleAutoDew()
     function._device.SetSwitchValue.assert_called_once_with(13, float(False))
@@ -133,7 +133,7 @@ def test_toggleAutoDew_2_upbv2(function):
 
 def test_toggleAutoDew_3_upb(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=15)
+    function._device = _make_upb_device(maxSwitch=15)
     function.data["AUTO_DEW.INDI_ENABLED"] = True
     function.toggleAutoDew()
     function._device.SetSwitchValue.assert_called_once_with(7, float(True))
@@ -146,7 +146,7 @@ def test_sendDew_1_disconnected(function):
 
 def test_sendDew_2_upbv2(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=21)
+    function._device = _make_upb_device(maxSwitch=21)
     function.sendDew("A", 50.0)
     expected_val = float(int(50.0 * 2.55))
     function._device.SetSwitchValue.assert_called_once_with(4, expected_val)
@@ -154,7 +154,7 @@ def test_sendDew_2_upbv2(function):
 
 def test_sendDew_3_upb_no_action(function):
     function.deviceConnected = True
-    function._device = _make_upb_device(max_switch=15)
+    function._device = _make_upb_device(maxSwitch=15)
     function.sendDew("A", 50.0)
     function._device.SetSwitchValue.assert_not_called()
 

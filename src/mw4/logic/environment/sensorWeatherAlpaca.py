@@ -15,8 +15,8 @@
 ###########################################################
 from mw4.base.alpacaClass import AlpacaClass
 
-# (state_key_lower, data_key, typed_attr_name)
-_WEATHER_PROPS = [
+# (stateKeyLower, dataKey, typedAttrName)
+_weatherProps = [
     ("temperature", "WEATHER_PARAMETERS.WEATHER_TEMPERATURE", "Temperature"),
     ("pressure", "WEATHER_PARAMETERS.WEATHER_PRESSURE", "Pressure"),
     ("dewpoint", "WEATHER_PARAMETERS.WEATHER_DEWPOINT", "DewPoint"),
@@ -46,13 +46,13 @@ class SensorWeatherAlpaca(AlpacaClass):
         except Exception:
             state = {}
 
-        for state_key, data_key, attr_name in _WEATHER_PROPS:
+        for stateKey, dataKey, attrName in _weatherProps:
             try:
                 value = (
-                    state[state_key]
-                    if state_key in state
-                    else getattr(self._device, attr_name)
+                    state[stateKey]
+                    if stateKey in state
+                    else getattr(self._device, attrName)
                 )
-                self.storePropertyToData(value, data_key)
+                self.storePropertyToData(value, dataKey)
             except Exception as e:
-                self.log.error(f"[{self.deviceName}] {attr_name} error: [{e}]")
+                self.log.error(f"[{self.deviceName}] {attrName} error: [{e}]")

@@ -299,10 +299,10 @@ class AlpacaClass(DriverData):
         if manual not in servers:
             servers.append(manual)
 
-        all_devices: list = []
+        allDevices: list = []
         for addr in servers:
             with contextlib.suppress(Exception):
-                all_devices.extend(management.configureddevices(addr))
+                allDevices.extend(management.configureddevices(addr))
 
-        temp = [x for x in all_devices if x["DeviceType"].lower() == deviceType]
+        temp = [x for x in allDevices if x["DeviceType"].lower() == deviceType]
         return [f"{x['DeviceName']}:{deviceType}:{x['DeviceNumber']}" for x in temp]

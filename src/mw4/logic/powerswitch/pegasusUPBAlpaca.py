@@ -56,11 +56,11 @@ class PegasusUPBAlpaca(AlpacaClass):
         if not self.deviceConnected:
             return
 
-        max_switch = self._getMaxSwitch()
-        if max_switch is None:
+        maxSwitch = self._getMaxSwitch()
+        if maxSwitch is None:
             return
 
-        model = "UPB" if max_switch == 15 else "UPBv2"
+        model = "UPB" if maxSwitch == 15 else "UPBv2"
         self.data["FIRMWARE_INFO.VERSION"] = "1.4" if model == "UPB" else "2.1"
 
         if model == "UPB":
@@ -115,9 +115,9 @@ class PegasusUPBAlpaca(AlpacaClass):
     def togglePowerPort(self, port: str) -> None:
         if not self.deviceConnected:
             return
-        switch_number = int(port) - 1
+        switchNumber = int(port) - 1
         val = self.data.get(f"POWER_CONTROL.POWER_CONTROL_{port}", True)
-        self._setSwitchValue(switch_number, float(not val))
+        self._setSwitchValue(switchNumber, float(not val))
 
     def togglePowerPortBoot(self, port: str):
         pass
@@ -128,22 +128,22 @@ class PegasusUPBAlpaca(AlpacaClass):
     def togglePortUSB(self, port: str) -> None:
         if not self.deviceConnected:
             return
-        max_switch = self._getMaxSwitch()
-        if max_switch is None:
+        maxSwitch = self._getMaxSwitch()
+        if maxSwitch is None:
             return
-        model = "UPB" if max_switch == 15 else "UPBv2"
+        model = "UPB" if maxSwitch == 15 else "UPBv2"
         if model == "UPBv2":
-            switch_number = int(port) + 6
+            switchNumber = int(port) + 6
             val = self.data.get(f"USB_PORT_CONTROL.PORT_{port}", True)
-            self._setSwitchValue(switch_number, float(val))
+            self._setSwitchValue(switchNumber, float(val))
 
     def toggleAutoDew(self) -> None:
         if not self.deviceConnected:
             return
-        max_switch = self._getMaxSwitch()
-        if max_switch is None:
+        maxSwitch = self._getMaxSwitch()
+        if maxSwitch is None:
             return
-        model = "UPB" if max_switch == 15 else "UPBv2"
+        model = "UPB" if maxSwitch == 15 else "UPBv2"
         if model == "UPB":
             val = self.data.get("AUTO_DEW.INDI_ENABLED", False)
             self._setSwitchValue(7, float(val))
@@ -154,14 +154,14 @@ class PegasusUPBAlpaca(AlpacaClass):
     def sendDew(self, port: str, value: float) -> None:
         if not self.deviceConnected:
             return
-        max_switch = self._getMaxSwitch()
-        if max_switch is None:
+        maxSwitch = self._getMaxSwitch()
+        if maxSwitch is None:
             return
-        model = "UPB" if max_switch == 15 else "UPBv2"
-        switch_number = ord(port) - ord("A") + 4
+        model = "UPB" if maxSwitch == 15 else "UPBv2"
+        switchNumber = ord(port) - ord("A") + 4
         val = int(value * 2.55)
         if model == "UPBv2":
-            self._setSwitchValue(switch_number, float(val))
+            self._setSwitchValue(switchNumber, float(val))
 
     def sendAdjustableOutput(self, value: float) -> None:
         pass

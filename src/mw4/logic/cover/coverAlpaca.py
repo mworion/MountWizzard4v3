@@ -15,7 +15,7 @@
 ###########################################################
 from mw4.base.alpacaClass import AlpacaClass
 
-_COVER_STATES = ["NotPresent", "Closed", "Moving", "Open", "Unknown", "Error"]
+_coverStates = ["NotPresent", "Closed", "Moving", "Open", "Unknown", "Error"]
 
 
 class CoverAlpaca(AlpacaClass):
@@ -37,13 +37,13 @@ class CoverAlpaca(AlpacaClass):
             state = {}
 
         try:
-            cover_state = (
+            coverState = (
                 state["coverstate"] if "coverstate" in state else self._device.CoverState
             )
-            state_text = _COVER_STATES[cover_state] if 0 <= cover_state < len(
-                _COVER_STATES
+            stateText = _coverStates[coverState] if 0 <= coverState < len(
+                _coverStates
             ) else "Unknown"
-            self.storePropertyToData(state_text, "Status.Cover")
+            self.storePropertyToData(stateText, "Status.Cover")
         except Exception as e:
             self.log.error(f"[{self.deviceName}] CoverState error: [{e}]")
 
@@ -58,13 +58,13 @@ class CoverAlpaca(AlpacaClass):
             self.log.error(f"[{self.deviceName}] Brightness error: [{e}]")
 
         try:
-            max_brightness = (
+            maxBrightness = (
                 state["maxbrightness"]
                 if "maxbrightness" in state
                 else self._device.MaxBrightness
             )
             self.storePropertyToData(
-                max_brightness, "FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_MAX"
+                maxBrightness, "FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_MAX"
             )
         except Exception as e:
             self.log.error(f"[{self.deviceName}] MaxBrightness error: [{e}]")

@@ -37,16 +37,16 @@ def function():
         yield func
 
 
-def _make_device(cover_state=1, brightness=128, max_brightness=255):
+def _make_device(coverState=1, brightness=128, maxBrightness=255):
     dev = mock.MagicMock()
     dev.DeviceState = [
-        {"Name": "CoverState", "Value": cover_state},
+        {"Name": "CoverState", "Value": coverState},
         {"Name": "Brightness", "Value": brightness},
-        {"Name": "MaxBrightness", "Value": max_brightness},
+        {"Name": "MaxBrightness", "Value": maxBrightness},
     ]
-    dev.CoverState = cover_state
+    dev.CoverState = coverState
     dev.Brightness = brightness
-    dev.MaxBrightness = max_brightness
+    dev.MaxBrightness = maxBrightness
     return dev
 
 
@@ -57,7 +57,7 @@ def test_workerPollData_1_disconnected(function):
 
 def test_workerPollData_2_stores_values(function):
     function.deviceConnected = True
-    function._device = _make_device(cover_state=1, brightness=100, max_brightness=255)
+    function._device = _make_device(coverState=1, brightness=100, maxBrightness=255)
     function.workerPollData()
     assert function.data["Status.Cover"] == "Closed"
     assert function.data["FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_VALUE"] == 100

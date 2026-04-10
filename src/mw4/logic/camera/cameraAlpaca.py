@@ -19,8 +19,8 @@ from astropy.io import fits
 from mw4.base.alpacaClass import AlpacaClass
 from mw4.base.tpool import Worker
 
-# (state_key_lower, data_key, typed_attr_name)
-_POLL_PROPS = [
+# (stateKeyLower, dataKey, typedAttrName)
+_pollProps = [
     ("binx", "CCD_BINNING.HOR_BIN", "BinX"),
     ("biny", "CCD_BINNING.VERT_BIN", "BinY"),
     ("camerastate", "CAMERA.STATE", "CameraState"),
@@ -63,7 +63,6 @@ class CameraAlpaca(AlpacaClass):
                 self.storePropertyToData(getattr(self._device, attr), key)
             except Exception as e:
                 self.log.error(f"[{self.deviceName}] {attr} error: [{e}]")
-
         # Optional properties — wrap individually (Priority 6)
         for attr, key in [
             ("GainMax", "CCD_GAIN.GAIN_MAX"),
@@ -86,16 +85,16 @@ class CameraAlpaca(AlpacaClass):
         except Exception:
             state = {}
 
-        for state_key, data_key, attr_name in _POLL_PROPS:
+        for stateKey, dataKey, attrName in _pollProps:
             try:
                 value = (
-                    state[state_key]
-                    if state_key in state
-                    else getattr(self._device, attr_name)
+                    state[stateKey]
+                    if stateKey in state
+                    else getattr(self._device, attrName)
                 )
-                self.storePropertyToData(value, data_key)
+                self.storePropertyToData(value, dataKey)
             except Exception as e:
-                self.log.error(f"[{self.deviceName}] {attr_name} error: [{e}]")
+                self.log.error(f"[{self.deviceName}] {attrName} error: [{e}]")
 
     def sendDownloadMode(self) -> None:
         if self.data.get("CAN_FAST", False):
@@ -127,11 +126,11 @@ class CameraAlpaca(AlpacaClass):
         # Priority 3: ImageArray auto-negotiates binary ImageBytes transport
         self.signals.message.emit("download")
         try:
-            raw_data = self._device.ImageArray
+            rawData = self._device.ImageArray
         except Exception as e:
             self.log.error(f"[{self.deviceName}] ImageArray error: [{e}]")
             return
-        data = np.array(raw_data, dtype=np.uint16).T
+        data = np.array(rawData, dtype=np.uint16).T
 
         self.signals.downloaded.emit(self.parent.imagePath)
         self.signals.message.emit("saving")
