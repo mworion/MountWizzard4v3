@@ -35,135 +35,133 @@ def function():
     yield func
 
 
-def test_workerPollData_1(function):
+def _make_upb_device(max_switch=15):
+    dev = mock.MagicMock()
+    dev.MaxSwitch = max_switch
+    dev.GetSwitch.return_value = True
+    dev.GetSwitchValue.return_value = 5.0
+    return dev
+
+
+def test_workerPollData_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty"):
+    function.workerPollData()  # no-op
+
+
+def test_workerPollData_2_upb_model(function):
+    function.deviceConnected = True
+    function._device = _make_upb_device(max_switch=15)
+    with mock.patch.object(function, "storePropertyToData"):
         function.workerPollData()
+    assert function.data["FIRMWARE_INFO.VERSION"] == "1.4"
 
 
-def test_workerPollData_2(function):
+def test_workerPollData_3_upbv2_model(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=15):
-        with mock.patch.object(function, "storePropertyToData"):
-            function.workerPollData()
+    function._device = _make_upb_device(max_switch=21)
+    with mock.patch.object(function, "storePropertyToData"):
+        function.workerPollData()
+    assert function.data["FIRMWARE_INFO.VERSION"] == "2.1"
 
 
-def test_workerPollData_3(function):
+def test_workerPollData_4_maxswitch_raises(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=21):
-        with mock.patch.object(function, "storePropertyToData"):
-            function.workerPollData()
+    function._device = mock.MagicMock()
+    type(function._device).MaxSwitch = mock.PropertyMock(side_effect=Exception("err"))
+    function.workerPollData()  # returns early, must not raise
 
 
-def test_togglePowerPort_1(function):
+def test_togglePowerPort_1_disconnected(function):
     function.deviceConnected = False
-    function.togglePowerPort("1")
+    function.togglePowerPort("1")  # no-op
 
 
-def test_togglePowerPort_2(function):
+def test_togglePowerPort_2_calls_setswitchvalue(function):
     function.deviceConnected = True
+    function._device = _make_upb_device()
+    function.data["POWER_CONTROL.POWER_CONTROL_1"] = True
     function.togglePowerPort("1")
+    function._device.SetSwitchValue.assert_called_once_with(0, float(False))
 
 
-def test_togglePowerPort_3(function):
+def test_togglePowerPort_3_device_missing(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.togglePowerPort("1")
+    function._device = None
+    function.togglePowerPort("1")  # _getMaxSwitch handles None gracefully
 
 
 def test_togglePowerPortBoot_1(function):
-    function.deviceConnected = False
-    function.togglePowerPortBoot("1")
-
-
-def test_togglePowerPortBoot_2(function):
-    function.deviceConnected = True
-    function.togglePowerPortBoot("1")
+    function.togglePowerPortBoot("1")  # pass
 
 
 def test_toggleHubUSB_1(function):
+    function.toggleHubUSB()  # pass
+
+
+def test_togglePortUSB_1_disconnected(function):
     function.deviceConnected = False
-    function.toggleHubUSB()
+    function.togglePortUSB("1")  # no-op
 
 
-def test_toggleHubUSB_2(function):
+def test_togglePortUSB_2_upbv2(function):
     function.deviceConnected = True
-    function.toggleHubUSB()
-
-
-def test_togglePortUSB_1(function):
-    function.deviceConnected = False
+    function._device = _make_upb_device(max_switch=21)
+    function.data["USB_PORT_CONTROL.PORT_1"] = False
     function.togglePortUSB("1")
+    function._device.SetSwitchValue.assert_called_with(7, float(False))
 
 
-def test_togglePortUSB_2(function):
+def test_togglePortUSB_3_upb_no_action(function):
     function.deviceConnected = True
+    function._device = _make_upb_device(max_switch=15)  # UPB → no USB port toggle
     function.togglePortUSB("1")
+    function._device.SetSwitchValue.assert_not_called()
 
 
-def test_togglePortUSB_3(function):
-    function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=21):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.togglePortUSB("1")
-
-
-def test_toggleAutoDew_1(function):
+def test_toggleAutoDew_1_disconnected(function):
     function.deviceConnected = False
+    function.toggleAutoDew()  # no-op
+
+
+def test_toggleAutoDew_2_upbv2(function):
+    function.deviceConnected = True
+    function._device = _make_upb_device(max_switch=21)
+    function.data["AUTO_DEW.DEW_A"] = False
     function.toggleAutoDew()
+    function._device.SetSwitchValue.assert_called_once_with(13, float(False))
 
 
-def test_toggleAutoDew_2(function):
+def test_toggleAutoDew_3_upb(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=21):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.toggleAutoDew()
+    function._device = _make_upb_device(max_switch=15)
+    function.data["AUTO_DEW.INDI_ENABLED"] = True
+    function.toggleAutoDew()
+    function._device.SetSwitchValue.assert_called_once_with(7, float(True))
 
 
-def test_toggleAutoDew_3(function):
-    function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=15):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.toggleAutoDew()
-
-
-def test_sendDew_1(function):
+def test_sendDew_1_disconnected(function):
     function.deviceConnected = False
-    function.sendDew("1", 10)
+    function.sendDew("A", 50.0)  # no-op
 
 
-def test_sendDew_2(function):
+def test_sendDew_2_upbv2(function):
     function.deviceConnected = True
-    function.sendDew("1", 10)
+    function._device = _make_upb_device(max_switch=21)
+    function.sendDew("A", 50.0)
+    expected_val = float(int(50.0 * 2.55))
+    function._device.SetSwitchValue.assert_called_once_with(4, expected_val)
 
 
-def test_sendDew_3(function):
+def test_sendDew_3_upb_no_action(function):
     function.deviceConnected = True
-    function.sendDew("1", 10)
-
-
-def test_sendDew_4(function):
-    function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=21):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.sendDew("1", 10)
+    function._device = _make_upb_device(max_switch=15)
+    function.sendDew("A", 50.0)
+    function._device.SetSwitchValue.assert_not_called()
 
 
 def test_sendAdjustableOutput_1(function):
-    function.deviceConnected = False
-    function.sendAdjustableOutput(1)
-
-
-def test_sendAdjustableOutput_2(function):
-    function.deviceConnected = True
-    function.sendAdjustableOutput(4)
+    function.sendAdjustableOutput(1)  # pass
 
 
 def test_reboot_1(function):
-    function.deviceConnected = False
-    function.reboot()
-
-
-def test_reboot_2(function):
-    function.deviceConnected = True
-    function.reboot()
+    function.reboot()  # pass

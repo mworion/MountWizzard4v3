@@ -37,82 +37,113 @@ def function():
         yield func
 
 
-def test_workerPollData_1(function):
+def _make_device(cover_state=1, brightness=128, max_brightness=255):
+    dev = mock.MagicMock()
+    dev.DeviceState = [
+        {"Name": "CoverState", "Value": cover_state},
+        {"Name": "Brightness", "Value": brightness},
+        {"Name": "MaxBrightness", "Value": max_brightness},
+    ]
+    dev.CoverState = cover_state
+    dev.Brightness = brightness
+    dev.MaxBrightness = max_brightness
+    return dev
+
+
+def test_workerPollData_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        function.workerPollData()
+    function.workerPollData()  # no-op
 
 
-def test_workerPollData_2(function):
+def test_workerPollData_2_stores_values(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        with mock.patch.object(function, "storePropertyToData"):
-            function.workerPollData()
+    function._device = _make_device(cover_state=1, brightness=100, max_brightness=255)
+    function.workerPollData()
+    assert function.data["Status.Cover"] == "Closed"
+    assert function.data["FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_VALUE"] == 100
+    assert function.data["FLAT_LIGHT_INTENSITY.FLAT_LIGHT_INTENSITY_MAX"] == 255
 
 
-def test_closeCover_1(function):
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.closeCover()
-
-
-def test_closeCover_2(function):
+def test_workerPollData_3_devicestate_fails_falls_back(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.closeCover()
+    function._device = mock.MagicMock()
+    type(function._device).DeviceState = mock.PropertyMock(
+        side_effect=Exception("not impl")
+    )
+    function._device.CoverState = 3  # "Open"
+    function._device.Brightness = 50
+    function._device.MaxBrightness = 255
+    function.workerPollData()
+    assert function.data["Status.Cover"] == "Open"
 
 
-def test_openCover_1(function):
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.openCover()
+def test_closeCover_1_disconnected(function):
+    function.deviceConnected = False
+    function.closeCover()  # no-op
 
 
-def test_openCover_2(function):
+def test_closeCover_2_calls_typed(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.openCover()
+    function._device = mock.MagicMock()
+    function.closeCover()
+    function._device.CloseCover.assert_called_once()
 
 
-def test_haltCover_1(function):
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.haltCover()
+def test_openCover_1_disconnected(function):
+    function.deviceConnected = False
+    function.openCover()  # no-op
 
 
-def test_haltCover_2(function):
+def test_openCover_2_calls_typed(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.haltCover()
+    function._device = mock.MagicMock()
+    function.openCover()
+    function._device.OpenCover.assert_called_once()
 
 
-def test_lightOn_1(function):
-    with mock.patch.object(function, "getAlpacaProperty", return_value=0):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.lightOn()
+def test_haltCover_1_disconnected(function):
+    function.deviceConnected = False
+    function.haltCover()  # no-op
 
 
-def test_lightOn_2(function):
+def test_haltCover_2_calls_typed(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=0):
-        with mock.patch.object(function, "setAlpacaProperty"):
-            function.lightOn()
+    function._device = mock.MagicMock()
+    function.haltCover()
+    function._device.HaltCover.assert_called_once()
 
 
-def test_lightOff_1(function):
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.lightOff()
+def test_lightOn_1_disconnected(function):
+    function.deviceConnected = False
+    function.lightOn()  # no-op
 
 
-def test_lightOff_2(function):
+def test_lightOn_2_calls_calibratoron(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.lightOff()
+    function._device = mock.MagicMock()
+    function.lightOn()
+    function._device.CalibratorOn.assert_called_once_with(127)  # 255 // 2
 
 
-def test_lightIntensity_1(function):
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.lightIntensity(0)
+def test_lightOff_1_disconnected(function):
+    function.deviceConnected = False
+    function.lightOff()  # no-op
 
 
-def test_lightIntensity_2(function):
+def test_lightOff_2_calls_calibratoroff(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.lightIntensity(0)
+    function._device = mock.MagicMock()
+    function.lightOff()
+    function._device.CalibratorOff.assert_called_once()
+
+
+def test_lightIntensity_1_disconnected(function):
+    function.deviceConnected = False
+    function.lightIntensity(0)  # no-op
+
+
+def test_lightIntensity_2_calls_calibratoron(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    function.lightIntensity(200.0)
+    function._device.CalibratorOn.assert_called_once_with(200)

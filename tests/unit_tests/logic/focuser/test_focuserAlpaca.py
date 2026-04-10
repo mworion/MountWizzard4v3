@@ -35,38 +35,59 @@ def function():
     yield func
 
 
-def test_workerPollData_1(function):
+def test_workerPollData_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        function.workerPollData()
+    function.workerPollData()  # no-op, must not raise
 
 
-def test_workerPollData_2(function):
+def test_workerPollData_2_stores_position(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        function.workerPollData()
-        assert function.data["ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"] == 1
+    function._device = mock.MagicMock()
+    function._device.Position = 1500
+    function.workerPollData()
+    assert function.data["ABS_FOCUS_POSITION.FOCUS_ABSOLUTE_POSITION"] == 1500
 
 
-def test_move_1(function):
+def test_workerPollData_3_device_raises(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    type(function._device).Position = mock.PropertyMock(side_effect=Exception("err"))
+    function.workerPollData()  # must not propagate exception
+
+
+def test_move_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.move(position=0)
+    function.move(position=100)  # no-op
 
 
-def test_move_2(function):
+def test_move_2_calls_typed_move(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.move(position=0)
+    function._device = mock.MagicMock()
+    function.move(position=100)
+    function._device.Move.assert_called_once_with(100)
 
 
-def test_halt_1(function):
+def test_move_3_device_raises(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    function._device.Move.side_effect = Exception("not impl")
+    function.move(position=100)  # must not propagate
+
+
+def test_halt_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.halt()
+    function.halt()  # no-op
 
 
-def test_halt_2(function):
+def test_halt_2_calls_typed_halt(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.halt()
+    function._device = mock.MagicMock()
+    function.halt()
+    function._device.Halt.assert_called_once()
+
+
+def test_halt_3_device_raises(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    function._device.Halt.side_effect = Exception("not impl")
+    function.halt()  # must not propagate

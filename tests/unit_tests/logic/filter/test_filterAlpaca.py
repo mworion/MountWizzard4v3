@@ -35,55 +35,82 @@ def function():
     yield func
 
 
-def test_workerGetInitialConfig_1(function):
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.workerGetInitialConfig()
+def test_workerGetInitialConfig_1_no_device(function):
+    function._device = None
+    function.workerGetInitialConfig()  # must not raise
 
 
-def test_workerGetInitialConfig_2(function):
-    with mock.patch.object(function, "getAlpacaProperty", return_value=None):
-        function.workerGetInitialConfig()
+def test_workerGetInitialConfig_2_names_raises(function):
+    function._device = mock.MagicMock()
+    type(function._device).Names = mock.PropertyMock(side_effect=Exception("err"))
+    function.workerGetInitialConfig()  # must not raise
 
 
-def test_workerGetInitialConfig_3(function):
-    with mock.patch.object(function, "getAlpacaProperty", return_value=["test", "test1"]):
-        function.workerGetInitialConfig()
-        assert function.data["FILTER_NAME.FILTER_SLOT_NAME_0"] == "test"
-        assert function.data["FILTER_NAME.FILTER_SLOT_NAME_1"] == "test1"
+def test_workerGetInitialConfig_3_names_none(function):
+    function._device = mock.MagicMock()
+    function._device.Names = None
+    function.workerGetInitialConfig()  # must not raise
 
 
-def test_workerGetInitialConfig_4(function):
-    with mock.patch.object(function, "getAlpacaProperty", return_value=["test", None]):
-        function.workerGetInitialConfig()
-        assert function.data["FILTER_NAME.FILTER_SLOT_NAME_0"] == "test"
+def test_workerGetInitialConfig_4_stores_names(function):
+    function._device = mock.MagicMock()
+    function._device.Names = ["Red", "Green"]
+    function.workerGetInitialConfig()
+    assert function.data["FILTER_NAME.FILTER_SLOT_NAME_0"] == "Red"
+    assert function.data["FILTER_NAME.FILTER_SLOT_NAME_1"] == "Green"
 
 
-def test_workerPollData_1(function):
+def test_workerGetInitialConfig_5_none_slot_skipped(function):
+    function.data.clear()  # start from empty data
+    function._device = mock.MagicMock()
+    function._device.Names = ["Red", None]
+    function.workerGetInitialConfig()
+    assert function.data["FILTER_NAME.FILTER_SLOT_NAME_0"] == "Red"
+    assert "FILTER_NAME.FILTER_SLOT_NAME_1" not in function.data
+
+
+def test_workerPollData_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty", return_value=-1):
-        function.workerPollData()
+    function.workerPollData()  # no-op
 
 
-def test_workerPollData_2(function):
+def test_workerPollData_2_position_minus1(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=-1):
-        function.workerPollData()
+    function._device = mock.MagicMock()
+    function._device.Position = -1
+    function.workerPollData()
+    assert "FILTER_SLOT.FILTER_SLOT_VALUE" not in function.data
 
 
-def test_workerPollData_3(function):
+def test_workerPollData_3_stores_position(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        function.workerPollData()
-        assert function.data["FILTER_SLOT.FILTER_SLOT_VALUE"] == 1
+    function._device = mock.MagicMock()
+    function._device.Position = 2
+    function.workerPollData()
+    assert function.data["FILTER_SLOT.FILTER_SLOT_VALUE"] == 2
 
 
-def test_sendFilterNumber_1(function):
+def test_workerPollData_4_device_raises(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    type(function._device).Position = mock.PropertyMock(side_effect=Exception("err"))
+    function.workerPollData()  # must not propagate
+
+
+def test_sendFilterNumber_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.sendFilterNumber()
+    function.sendFilterNumber(filterNumber=3)  # no-op
 
 
-def test_sendFilterNumber_2(function):
+def test_sendFilterNumber_2_sets_position(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.sendFilterNumber()
+    function._device = mock.MagicMock()
+    function.sendFilterNumber(filterNumber=3)
+    assert function._device.Position == 3
+
+
+def test_sendFilterNumber_3_device_raises(function):
+    function.deviceConnected = True
+    function._device = mock.MagicMock()
+    type(function._device).Position = mock.PropertyMock(side_effect=Exception("err"))
+    function.sendFilterNumber(filterNumber=3)  # must not propagate

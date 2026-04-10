@@ -24,7 +24,17 @@ class TelescopeAlpaca(AlpacaClass):
         self.signals = parent.signals
         self.data = parent.data
 
-    def workerGetInitialConfig(self):
+    def workerGetInitialConfig(self) -> None:
         super().workerGetInitialConfig()
-        self.getAndStoreAlpacaProperty("aperturediameter", "TELESCOPE_INFO.TELESCOPE_APERTURE")
-        self.getAndStoreAlpacaProperty("focallength", "TELESCOPE_INFO.TELESCOPE_FOCAL_LENGTH")
+        try:
+            self.storePropertyToData(
+                self._device.ApertureDiameter, "TELESCOPE_INFO.TELESCOPE_APERTURE"
+            )
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] ApertureDiameter error: [{e}]")
+        try:
+            self.storePropertyToData(
+                self._device.FocalLength, "TELESCOPE_INFO.TELESCOPE_FOCAL_LENGTH"
+            )
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] FocalLength error: [{e}]")

@@ -37,11 +37,25 @@ def function():
         yield func
 
 
-def test_workerGetInitialConfig_1(function):
-    with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-        function.workerGetInitialConfig()
+def test_workerGetInitialConfig_1_stores_values(function):
+    function._device = mock.MagicMock()
+    function._device.ApertureDiameter = 0.08
+    function._device.FocalLength = 0.4
+    function.workerGetInitialConfig()
+    assert function.data["TELESCOPE_INFO.TELESCOPE_APERTURE"] == 0.08
+    assert function.data["TELESCOPE_INFO.TELESCOPE_FOCAL_LENGTH"] == 0.4
 
 
-def test_workerGetInitialConfig_2(function):
-    with mock.patch.object(function, "getAndStoreAlpacaProperty", return_value=100):
-        function.workerGetInitialConfig()
+def test_workerGetInitialConfig_2_aperture_raises(function):
+    function._device = mock.MagicMock()
+    type(function._device).ApertureDiameter = mock.PropertyMock(
+        side_effect=Exception("not impl")
+    )
+    function._device.FocalLength = 0.4
+    function.workerGetInitialConfig()
+    assert function.data["TELESCOPE_INFO.TELESCOPE_FOCAL_LENGTH"] == 0.4
+
+
+def test_workerGetInitialConfig_3_no_device(function):
+    function._device = None
+    function.workerGetInitialConfig()  # must not raise

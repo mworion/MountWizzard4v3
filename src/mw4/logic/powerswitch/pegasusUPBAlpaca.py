@@ -25,131 +25,99 @@ class PegasusUPBAlpaca(AlpacaClass):
         self.signals = parent.signals
         self.data = parent.data
 
+    def _getSwitch(self, i: int) -> bool | None:
+        try:
+            return self._device.GetSwitch(i)
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] GetSwitch({i}) error: [{e}]")
+            return None
+
+    def _getSwitchValue(self, i: int) -> float | None:
+        try:
+            return self._device.GetSwitchValue(i)
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] GetSwitchValue({i}) error: [{e}]")
+            return None
+
+    def _setSwitchValue(self, i: int, value: float) -> None:
+        try:
+            self._device.SetSwitchValue(i, value)
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] SetSwitchValue({i}) error: [{e}]")
+
+    def _getMaxSwitch(self) -> int | None:
+        try:
+            return self._device.MaxSwitch
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] MaxSwitch error: [{e}]")
+            return None
+
     def workerPollData(self) -> None:
         if not self.deviceConnected:
             return
 
-        model = "UPB" if self.getAlpacaProperty("maxswitch") == 15 else "UPBv2"
+        max_switch = self._getMaxSwitch()
+        if max_switch is None:
+            return
 
+        model = "UPB" if max_switch == 15 else "UPBv2"
         self.data["FIRMWARE_INFO.VERSION"] = "1.4" if model == "UPB" else "2.1"
+
         if model == "UPB":
+            self.storePropertyToData(self._getSwitch(0), "POWER_CONTROL.POWER_CONTROL_1")
+            self.storePropertyToData(self._getSwitch(1), "POWER_CONTROL.POWER_CONTROL_2")
+            self.storePropertyToData(self._getSwitch(2), "POWER_CONTROL.POWER_CONTROL_3")
+            self.storePropertyToData(self._getSwitch(3), "POWER_CONTROL.POWER_CONTROL_4")
+            self.storePropertyToData(self._getSwitchValue(4), "DEW_CURRENT.DEW_CURRENT_A")
+            self.storePropertyToData(self._getSwitchValue(5), "DEW_CURRENT.DEW_CURRENT_B")
+            self.storePropertyToData(self._getSwitch(6), "USB_HUB_CONTROL.INDI_ENABLED")
+            self.storePropertyToData(self._getSwitch(7), "AUTO_DEW.INDI_ENABLED")
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=0),
-                "POWER_CONTROL.POWER_CONTROL_1",
+                self._getSwitchValue(11), "POWER_SENSORS.SENSOR_VOLTAGE"
             )
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=1),
-                "POWER_CONTROL.POWER_CONTROL_2",
+                self._getSwitchValue(12), "POWER_SENSORS.SENSOR_CURRENT"
             )
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=2),
-                "POWER_CONTROL.POWER_CONTROL_3",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=3),
-                "POWER_CONTROL.POWER_CONTROL_4",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=4),
-                "DEW_CURRENT.DEW_CURRENT_A",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=5),
-                "DEW_CURRENT.DEW_CURRENT_B",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=6),
-                "USB_HUB_CONTROL.INDI_ENABLED",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=7), "AUTO_DEW.INDI_ENABLED"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=11),
-                "POWER_SENSORS.SENSOR_VOLTAGE",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=12),
-                "POWER_SENSORS.SENSOR_CURRENT",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=13),
-                "POWER_SENSORS.SENSOR_POWER",
+                self._getSwitchValue(13), "POWER_SENSORS.SENSOR_POWER"
             )
 
         if model == "UPBv2":
+            self.storePropertyToData(self._getSwitch(0), "POWER_CONTROL.POWER_CONTROL_1")
+            self.storePropertyToData(self._getSwitch(1), "POWER_CONTROL.POWER_CONTROL_2")
+            self.storePropertyToData(self._getSwitch(2), "POWER_CONTROL.POWER_CONTROL_3")
+            self.storePropertyToData(self._getSwitch(3), "POWER_CONTROL.POWER_CONTROL_4")
+            v = self._getSwitchValue(4)
+            self.storePropertyToData(v / 2.55 if v is not None else None, "DEW_PWM.DEW_A")
+            v = self._getSwitchValue(5)
+            self.storePropertyToData(v / 2.55 if v is not None else None, "DEW_PWM.DEW_B")
+            v = self._getSwitchValue(6)
+            self.storePropertyToData(v / 2.55 if v is not None else None, "DEW_PWM.DEW_C")
+            self.storePropertyToData(self._getSwitch(7), "USB_PORT_CONTROL.PORT_1")
+            self.storePropertyToData(self._getSwitch(8), "USB_PORT_CONTROL.PORT_2")
+            self.storePropertyToData(self._getSwitch(9), "USB_PORT_CONTROL.PORT_3")
+            self.storePropertyToData(self._getSwitch(10), "USB_PORT_CONTROL.PORT_4")
+            self.storePropertyToData(self._getSwitch(11), "USB_PORT_CONTROL.PORT_5")
+            self.storePropertyToData(self._getSwitch(12), "USB_PORT_CONTROL.PORT_6")
+            self.storePropertyToData(self._getSwitch(13), "AUTO_DEW.DEW_A")
+            self.storePropertyToData(self._getSwitch(13), "AUTO_DEW.DEW_B")
+            self.storePropertyToData(self._getSwitch(13), "AUTO_DEW.DEW_C")
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=0),
-                "POWER_CONTROL.POWER_CONTROL_1",
+                self._getSwitchValue(17), "POWER_SENSORS.SENSOR_VOLTAGE"
             )
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=1),
-                "POWER_CONTROL.POWER_CONTROL_2",
+                self._getSwitchValue(18), "POWER_SENSORS.SENSOR_CURRENT"
             )
             self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=2),
-                "POWER_CONTROL.POWER_CONTROL_3",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=3),
-                "POWER_CONTROL.POWER_CONTROL_4",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=4) / 2.55, "DEW_PWM.DEW_A"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=5) / 2.55, "DEW_PWM.DEW_B"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=6) / 2.55, "DEW_PWM.DEW_C"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=7), "USB_PORT_CONTROL.PORT_1"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=8), "USB_PORT_CONTROL.PORT_2"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=9), "USB_PORT_CONTROL.PORT_3"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=10), "USB_PORT_CONTROL.PORT_4"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=11), "USB_PORT_CONTROL.PORT_5"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=12), "USB_PORT_CONTROL.PORT_6"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=13), "AUTO_DEW.DEW_A"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=13), "AUTO_DEW.DEW_B"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitch", Id=13), "AUTO_DEW.DEW_C"
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=17),
-                "POWER_SENSORS.SENSOR_VOLTAGE",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=18),
-                "POWER_SENSORS.SENSOR_CURRENT",
-            )
-            self.storePropertyToData(
-                self.getAlpacaProperty("getswitchvalue", Id=19),
-                "POWER_SENSORS.SENSOR_POWER",
+                self._getSwitchValue(19), "POWER_SENSORS.SENSOR_POWER"
             )
 
     def togglePowerPort(self, port: str) -> None:
         if not self.deviceConnected:
             return
-
-        switchNumber = int(port) - 1
+        switch_number = int(port) - 1
         val = self.data.get(f"POWER_CONTROL.POWER_CONTROL_{port}", True)
-        self.setAlpacaProperty("setswitchvalue", Id=switchNumber, Value=not val)
+        self._setSwitchValue(switch_number, float(not val))
 
     def togglePowerPortBoot(self, port: str):
         pass
@@ -160,34 +128,40 @@ class PegasusUPBAlpaca(AlpacaClass):
     def togglePortUSB(self, port: str) -> None:
         if not self.deviceConnected:
             return
-
-        model = "UPB" if self.getAlpacaProperty("maxswitch") == 15 else "UPBv2"
+        max_switch = self._getMaxSwitch()
+        if max_switch is None:
+            return
+        model = "UPB" if max_switch == 15 else "UPBv2"
         if model == "UPBv2":
-            switchNumber = int(port) + 6
+            switch_number = int(port) + 6
             val = self.data.get(f"USB_PORT_CONTROL.PORT_{port}", True)
-            self.setAlpacaProperty("setswitchvalue", Id=switchNumber, Value=val)
+            self._setSwitchValue(switch_number, float(val))
 
     def toggleAutoDew(self) -> None:
         if not self.deviceConnected:
             return
-
-        model = "UPB" if self.getAlpacaProperty("maxswitch") == 15 else "UPBv2"
+        max_switch = self._getMaxSwitch()
+        if max_switch is None:
+            return
+        model = "UPB" if max_switch == 15 else "UPBv2"
         if model == "UPB":
             val = self.data.get("AUTO_DEW.INDI_ENABLED", False)
-            self.setAlpacaProperty("setswitchvalue", Id=7, Value=val)
+            self._setSwitchValue(7, float(val))
         else:
             val = self.data.get("AUTO_DEW.DEW_A", False)
-            self.setAlpacaProperty("setswitchvalue", Id=13, Value=val)
+            self._setSwitchValue(13, float(val))
 
     def sendDew(self, port: str, value: float) -> None:
         if not self.deviceConnected:
             return
-
-        model = "UPB" if self.getAlpacaProperty("maxswitch") == 15 else "UPBv2"
-        switchNumber = ord(port) - ord("A") + 4
+        max_switch = self._getMaxSwitch()
+        if max_switch is None:
+            return
+        model = "UPB" if max_switch == 15 else "UPBv2"
+        switch_number = ord(port) - ord("A") + 4
         val = int(value * 2.55)
         if model == "UPBv2":
-            self.setAlpacaProperty("setswitchvalue", Id=switchNumber, Value=val)
+            self._setSwitchValue(switch_number, float(val))
 
     def sendAdjustableOutput(self, value: float) -> None:
         pass

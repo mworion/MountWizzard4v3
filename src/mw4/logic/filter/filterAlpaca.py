@@ -24,10 +24,13 @@ class FilterAlpaca(AlpacaClass):
 
     def workerGetInitialConfig(self) -> None:
         super().workerGetInitialConfig()
-        names = self.getAlpacaProperty("names")
+        try:
+            names = self._device.Names
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] Names error: [{e}]")
+            return
         if names is None:
             return
-
         for i, name in enumerate(names):
             if name is None:
                 continue
@@ -36,8 +39,11 @@ class FilterAlpaca(AlpacaClass):
     def workerPollData(self) -> None:
         if not self.deviceConnected:
             return
-
-        position = self.getAlpacaProperty("position")
+        try:
+            position = self._device.Position
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] Position error: [{e}]")
+            return
         if position == -1 or position is None:
             return
         self.storePropertyToData(position, "FILTER_SLOT.FILTER_SLOT_VALUE")
@@ -45,4 +51,7 @@ class FilterAlpaca(AlpacaClass):
     def sendFilterNumber(self, filterNumber: int = 0) -> None:
         if not self.deviceConnected:
             return
-        self.setAlpacaProperty("position", Position=filterNumber)
+        try:
+            self._device.Position = filterNumber
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] set Position error: [{e}]")

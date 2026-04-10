@@ -17,7 +17,6 @@
 import PySide6
 import pytest
 import unittest.mock as mock
-from mw4.base.alpacaClass import AlpacaClass
 from mw4.base.signalsDevices import Signals
 from mw4.logic.dome.domeAlpaca import DomeAlpaca
 from tests.unit_tests.unitTestAddOns.baseTestApp import App
@@ -38,115 +37,143 @@ def function():
         yield func
 
 
+def _make_device(azimuth=180.0, slewing=False, shutter=0):
+    dev = mock.MagicMock()
+    dev.DeviceState = [
+        {"Name": "Azimuth", "Value": azimuth},
+        {"Name": "Slewing", "Value": slewing},
+        {"Name": "ShutterStatus", "Value": shutter},
+    ]
+    dev.Azimuth = azimuth
+    dev.Slewing = slewing
+    dev.ShutterStatus = shutter
+    dev.CanSetAltitude = True
+    dev.CanSetAzimuth = True
+    dev.CanSetShutter = True
+    return dev
+
+
 def test_workerGetInitialConfig_1(function):
-    with mock.patch.object(AlpacaClass, "getAndStoreAlpacaProperty", return_value=True):
-        with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-            function.workerGetInitialConfig()
+    function._device = _make_device()
+    function.workerGetInitialConfig()
+    assert function.data["CanSetAltitude"] is True
+    assert function.data["CanSetAzimuth"] is True
+    assert function.data["CanSetShutter"] is True
 
 
-def test_workerPollData_1(function):
-    function.data["CAN_FAST"] = True
-    with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-        function.workerPollData()
+def test_workerGetInitialConfig_2_raises(function):
+    function._device = mock.MagicMock()
+    type(function._device).CanSetAzimuth = mock.PropertyMock(
+        side_effect=Exception("not impl")
+    )
+    function.workerGetInitialConfig()  # must not raise
 
 
 def test_processPolledData_1(function):
-    function.processPolledData()
+    function.data["ABS_DOME_POSITION.DOME_ABSOLUTE_POSITION"] = 90.0
+    function.processPolledData()  # emits signal
 
 
-def test_workerPollData_1(function):
+def test_workerPollData_1_disconnected(function):
     function.deviceConnected = False
+    function.workerPollData()  # no-op
+
+
+def test_workerPollData_2_shutter_open(function):
+    function.deviceConnected = True
+    function._device = _make_device(azimuth=90.0, shutter=0)
     function.workerPollData()
+    assert function.data["ABS_DOME_POSITION.DOME_ABSOLUTE_POSITION"] == 90.0
+    assert function.data["DOME_SHUTTER.SHUTTER_OPEN"] is True
+    assert function.data["DOME_SHUTTER.SHUTTER_CLOSED"] is False
 
 
-def test_workerPollData_2(function):
+def test_workerPollData_3_shutter_closed(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=0):
-        with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-            function.workerPollData()
+    function._device = _make_device(azimuth=0.0, shutter=1)
+    function.workerPollData()
+    assert function.data["DOME_SHUTTER.SHUTTER_OPEN"] is False
+    assert function.data["DOME_SHUTTER.SHUTTER_CLOSED"] is True
 
 
-def test_workerPollData_3(function):
+def test_workerPollData_4_shutter_other(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=1):
-        with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-            function.workerPollData()
+    function._device = _make_device(azimuth=0.0, shutter=3)
+    function.workerPollData()
+    assert function.data.get("DOME_SHUTTER.SHUTTER_OPEN") is None
+    assert function.data.get("DOME_SHUTTER.SHUTTER_CLOSED") is None
 
 
-def test_workerPollData_4(function):
+def test_workerPollData_5_devicestate_fails_falls_back(function):
+    """DeviceState raises → per-property fallback is used."""
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty", return_value=3):
-        with mock.patch.object(function, "getAndStoreAlpacaProperty"):
-            function.workerPollData()
+    function._device = mock.MagicMock()
+    type(function._device).DeviceState = mock.PropertyMock(
+        side_effect=Exception("not impl")
+    )
+    function._device.Azimuth = 270.0
+    function._device.Slewing = True
+    function._device.ShutterStatus = 0
+    function.workerPollData()
+    assert function.data["ABS_DOME_POSITION.DOME_ABSOLUTE_POSITION"] == 270.0
 
 
-def test_slewToAltAz_1(function):
+def test_slewToAltAz_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.slewToAltAz(0, 0)
+    function.slewToAltAz(30.0, 180.0)  # no-op
 
 
-def test_slewToAltAz_2(function):
+def test_slewToAltAz_2_calls_typed_methods(function):
     function.deviceConnected = True
     function.data["CanSetAzimuth"] = True
     function.data["CanSetAltitude"] = True
-    with mock.patch.object(function, "setAlpacaProperty"):
-        function.slewToAltAz(0, 0)
+    function._device = mock.MagicMock()
+    function.slewToAltAz(30.0, 180.0)
+    function._device.SlewToAzimuth.assert_called_once_with(180.0)
+    function._device.SlewToAltitude.assert_called_once_with(30.0)
 
 
-def test_closeShutter_1(function):
+def test_closeShutter_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.closeShutter()
+    function.closeShutter()  # no-op
 
 
-def test_closeShutter_2(function):
+def test_closeShutter_2_calls_typed(function):
     function.deviceConnected = True
     function.data["CanSetShutter"] = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.closeShutter()
+    function._device = mock.MagicMock()
+    function.closeShutter()
+    function._device.CloseShutter.assert_called_once()
 
 
-def test_openShutter_1(function):
+def test_openShutter_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.openShutter()
+    function.openShutter()  # no-op
 
 
-def test_openShutter_2(function):
+def test_openShutter_2_calls_typed(function):
     function.deviceConnected = True
     function.data["CanSetShutter"] = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.openShutter()
+    function._device = mock.MagicMock()
+    function.openShutter()
+    function._device.OpenShutter.assert_called_once()
 
 
 def test_slewCW_1(function):
-    function.deviceConnected = False
-    function.slewCW()
-
-
-def test_slewCW_2(function):
-    function.deviceConnected = True
     function.slewCW()
 
 
 def test_slewCCW_1(function):
-    function.deviceConnected = False
     function.slewCCW()
 
 
-def test_slewCCW_2(function):
-    function.deviceConnected = True
-    function.slewCCW()
-
-
-def test_abortSlew_1(function):
+def test_abortSlew_1_disconnected(function):
     function.deviceConnected = False
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.abortSlew()
+    function.abortSlew()  # no-op
 
 
-def test_abortSlew_2(function):
+def test_abortSlew_2_calls_typed(function):
     function.deviceConnected = True
-    with mock.patch.object(function, "getAlpacaProperty"):
-        function.abortSlew()
+    function._device = mock.MagicMock()
+    function.abortSlew()
+    function._device.AbortSlew.assert_called_once()

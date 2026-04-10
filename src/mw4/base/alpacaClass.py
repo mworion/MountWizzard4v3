@@ -13,14 +13,33 @@
 # Licence APL2.0
 #
 ###########################################################
+import contextlib
 import time
+from alpaca import discovery, management
+from alpaca.camera import Camera
+from alpaca.covercalibrator import CoverCalibrator
 from alpaca.device import Device
-from alpaca import management
-from alpaca.exceptions import NotImplementedException as AlpacaNotImplemented
+from alpaca.dome import Dome
+from alpaca.filterwheel import FilterWheel
+from alpaca.focuser import Focuser
+from alpaca.observingconditions import ObservingConditions
+from alpaca.switch import Switch
+from alpaca.telescope import Telescope
 from mw4.base.driverDataClass import DriverData
 from mw4.base.tpool import Worker
 from PySide6.QtCore import QThreadPool, QTimer
 from typing import Any
+
+DEVICE_CLASSES: dict[str, type] = {
+    "camera": Camera,
+    "dome": Dome,
+    "focuser": Focuser,
+    "filterwheel": FilterWheel,
+    "telescope": Telescope,
+    "covercalibrator": CoverCalibrator,
+    "observingconditions": ObservingConditions,
+    "switch": Switch,
+}
 
 
 class AlpacaClass(DriverData):
@@ -35,7 +54,6 @@ class AlpacaClass(DriverData):
         self.threadPool: QThreadPool = parent.app.threadPool
         self.updateRate: int = 1000
         self.loadConfig: bool = False
-        self.propertyExceptions: list[str] = []
         self._host: tuple[str, int] = ("localhost", 11111)
         self._port: int = 11111
         self._hostaddress: str = "localhost"
@@ -73,9 +91,11 @@ class AlpacaClass(DriverData):
         self.cycleData.timeout.connect(self.pollData)
 
     def _rebuildDevice(self) -> None:
-        if self.deviceType:
-            address = f"{self._hostaddress}:{self._port}"
-            self._device = Device(address, self.deviceType, self.number, self.protocol)
+        cls = DEVICE_CLASSES.get(self.deviceType)
+        if cls:
+            self._device = cls(
+                f"{self._hostaddress}:{self._port}", self.number, self.protocol
+            )
 
     @property
     def host(self) -> tuple[str, int]:
@@ -124,7 +144,10 @@ class AlpacaClass(DriverData):
         self._rebuildDevice()
 
     def generateBaseUrl(self) -> str:
-        val = f"{self.protocol}://{self.host[0]}:{self.host[1]}/api/v{self.apiVersion}/{self.deviceType}/{self.number}"
+        val = (
+            f"{self.protocol}://{self.host[0]}:{self.host[1]}"
+            f"/api/v{self.apiVersion}/{self.deviceType}/{self.number}"
+        )
         return val
 
     def discoverAPIVersion(self) -> int:
@@ -144,55 +167,15 @@ class AlpacaClass(DriverData):
             self.log.error(f"Search devices exception: [{e}]")
             return []
 
-    def getAlpacaProperty(self, valueProp: str, **data) -> Any:
-        if not self.deviceName or self._device is None:
-            return []
-        if valueProp in self.propertyExceptions:
-            return []
-
-        self.log.trace(f"[{self.deviceName}], get [{valueProp}], data:[{data}]")
-
+    def discoverAlpacaServers(self) -> list[str]:
+        """UDP broadcast discovery → list of 'host:port' strings."""
         try:
-            value = self._device._get(valueProp, tmo=self.ALPACA_TIMEOUT, **data)
-            if valueProp != "imagearray":
-                self.log.trace(f"[{self.deviceName}], response: [{value}]")
-            else:
-                self.log.trace(f"[{self.deviceName}] imagearray received")
-            return value
-        except AlpacaNotImplemented:
-            self.log.warning(f"[{self.deviceName}] [{valueProp}] not implemented")
-            self.propertyExceptions.append(valueProp)
-            return []
+            return discovery.search_ipv4(numquery=2, timeout=2)
         except Exception as e:
-            self.log.error(f"[{self.deviceName}] get [{valueProp}] error: [{e}]")
+            self.log.error(f"UDP discovery: [{e}]")
             return []
-
-    def setAlpacaProperty(self, valueProp: str, **data) -> dict:
-        if not self.deviceName or self._device is None:
-            return {}
-        if valueProp in self.propertyExceptions:
-            return {}
-
-        self.log.trace(f"[{self.deviceName}], set [{valueProp}] to: [{data}]")
-
-        try:
-            result = self._device._put(valueProp, tmo=self.ALPACA_TIMEOUT, **data)
-            self.log.trace(f"[{self.deviceName}], response: [{result}]")
-            return result
-        except AlpacaNotImplemented:
-            self.log.warning(f"[{self.deviceName}] [{valueProp}] not implemented")
-            self.propertyExceptions.append(valueProp)
-            return {}
-        except Exception as e:
-            self.log.error(f"[{self.deviceName}] set [{valueProp}] error: [{e}]")
-            return {}
-
-    def getAndStoreAlpacaProperty(self, valueProp: str, element: str) -> None:
-        value = self.getAlpacaProperty(valueProp)
-        self.storePropertyToData(value, element)
 
     def workerConnectDevice(self) -> None:
-        self.propertyExceptions = []
         self.deviceConnected = False
         self.serverConnected = False
 
@@ -201,19 +184,15 @@ class AlpacaClass(DriverData):
             return
 
         suc = False
-        for retry in range(10):
-            try:
-                self._device.Connected = True
-                suc = bool(self._device.Connected)
-                if suc:
-                    self.log.debug(f"[{self.deviceName}] connected, [{retry}] retries")
+        try:
+            self._device.Connect()
+            for _ in range(50):  # max 5 s
+                if not self._device.Connecting:
                     break
-                else:
-                    self.log.info(f"[{self.deviceName}] Connection retry: [{retry}]")
-                    time.sleep(0.2)
-            except Exception as e:
-                self.log.info(f"[{self.deviceName}] retry [{retry}]: [{e}]")
-                time.sleep(0.2)
+                time.sleep(0.1)
+            suc = bool(self._device.Connected)
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] connect error: [{e}]")
 
         if not suc:
             self.msg.emit(2, "ALPACA", "Connect error", f"{self.deviceName}")
@@ -239,12 +218,30 @@ class AlpacaClass(DriverData):
         self.cycleDevice.stop()
 
     def workerGetInitialConfig(self) -> None:
-        self.data["DRIVER_INFO.DRIVER_NAME"] = self.getAlpacaProperty("name")
-        self.data["DRIVER_INFO.DRIVER_VERSION"] = self.getAlpacaProperty("driverversion")
-        self.data["DRIVER_INFO.DRIVER_EXEC"] = self.getAlpacaProperty("driverinfo")
+        if self._device is None:
+            return
+        try:
+            self.data["DRIVER_INFO.DRIVER_NAME"] = self._device.Name
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] get Name error: [{e}]")
+        try:
+            self.data["DRIVER_INFO.DRIVER_VERSION"] = self._device.DriverVersion
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] get DriverVersion error: [{e}]")
+        try:
+            self.data["DRIVER_INFO.DRIVER_EXEC"] = self._device.DriverInfo
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] get DriverInfo error: [{e}]")
 
     def workerPollStatus(self) -> None:
-        suc = self.getAlpacaProperty("connected")
+        if self._device is None:
+            return
+        try:
+            suc = bool(self._device.Connected)
+        except Exception as e:
+            self.log.error(f"[{self.deviceName}] poll status error: [{e}]")
+            suc = False
+
         if self.deviceConnected and not suc:
             self.deviceConnected = False
             self.signals.deviceDisconnected.emit(f"{self.deviceName}")
@@ -288,22 +285,24 @@ class AlpacaClass(DriverData):
     def stopCommunication(self) -> None:
         self.stopAlpacaTimer()
         if self._device is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._device.Connected = False
-            except Exception:
-                pass
         self.deviceConnected = False
         self.serverConnected = False
-        self.propertyExceptions = []
         self.signals.deviceDisconnected.emit(f"{self.deviceName}")
         self.signals.serverDisconnected.emit({f"{self.deviceName}": 0})
         self.msg.emit(0, "ALPACA", "Device  remove", f"{self.deviceName}")
 
     def discoverDevices(self, deviceType: str) -> list:
-        devices = self.discoverAlpacaDevices()
-        if not devices:
-            return []
+        servers = self.discoverAlpacaServers()
+        manual = f"{self._hostaddress}:{self._port}"
+        if manual not in servers:
+            servers.append(manual)
 
-        temp = [x for x in devices if x["DeviceType"].lower() == deviceType]
-        discoverList = [f"{x['DeviceName']}:{deviceType}:{x['DeviceNumber']}" for x in temp]
-        return discoverList
+        all_devices: list = []
+        for addr in servers:
+            with contextlib.suppress(Exception):
+                all_devices.extend(management.configureddevices(addr))
+
+        temp = [x for x in all_devices if x["DeviceType"].lower() == deviceType]
+        return [f"{x['DeviceName']}:{deviceType}:{x['DeviceNumber']}" for x in temp]
