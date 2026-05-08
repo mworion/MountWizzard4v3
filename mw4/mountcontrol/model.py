@@ -549,11 +549,11 @@ class Model(object):
             return False
 
         number = int(number)
-        if number < 1 or number > self._numberStars:
+        if number < 0 or number > self._numberStars - 1:
             return False
 
         conn = Connection(self.host)
-        commandString = ':delalst{0:d}#'.format(number)
+        commandString = ':delalst{0:d}#'.format(number + 1)
         suc, response, numberOfChunks = conn.communicate(commandString)
         if not suc:
             return False

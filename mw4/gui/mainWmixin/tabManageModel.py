@@ -644,7 +644,7 @@ class ManageModel:
         if not isYes:
             return False
 
-        suc = self.app.mount.model.deletePoint(index + 1)
+        suc = self.app.mount.model.deletePoint(index)
         if not suc:
             self.msg.emit(2, 'Model', 'Manage error',
                           f'Point {index:3.0f} cannot be deleted')
