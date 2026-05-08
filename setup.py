@@ -22,7 +22,7 @@ This is a transfer release without any additional changes !
 MountWizzard4 version 4 will be installed different !
 Please do not use the internal App Installer to upgrade further!
 
-- fix: respect settling times of mount
+- fix: index counting on stars
 """
 
 with open('notes.txt', 'w') as f:
@@ -30,7 +30,7 @@ with open('notes.txt', 'w') as f:
 
 setup(
     name='mountwizzard4',
-    version='3.2.8.3b6',
+    version='3.2.8.3b7',
     packages=[
         'mw4',
         'mw4.base',
