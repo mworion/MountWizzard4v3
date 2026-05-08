@@ -638,19 +638,19 @@ class ManageModel:
         index = points[0].data()[0]
 
         error = self.app.mount.model.starList[index].errorRMS
-        text = f'Do you want to delete \npoint {index + 1:3.0f}'
+        text = f'Do you want to delete \npoint {index:3.0f}'
         text += f'\nRMS of {error:5.1f} arcsec'
         isYes = self.messageDialog(self, 'Deleting point', text)
         if not isYes:
             return False
 
-        suc = self.app.mount.model.deletePoint(index)
+        suc = self.app.mount.model.deletePoint(index + 1)
         if not suc:
             self.msg.emit(2, 'Model', 'Manage error',
-                          f'Point {index + 1:3.0f} cannot be deleted')
+                          f'Point {index:3.0f} cannot be deleted')
             return False
 
-        text = f'Point: {index + 1:3.0f}, RMS of {error:5.1f}'
+        text = f'Point: {index:3.0f}, RMS of {error:5.1f}'
         text += ' arcsec deleted.'
         self.msg.emit(0, 'Model', 'Manage', text)
         self.refreshModel()
